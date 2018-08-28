@@ -60,6 +60,7 @@ class Model(object):
         option_train_ops = []
         option_losses = []
         option_losses_names = []
+        option_distil_train_op = None
         with tf.variable_scope('options_loss'):
             diversity_reward = -1 * tf.nn.softmax_cross_entropy_with_logits_v2(
                 labels=train_model.op_z, logits=train_model.option_discriminator)
@@ -123,6 +124,17 @@ class Model(object):
                 option_losses.append(discriminator_loss)
                 option_losses_names.append('option_discriminator')
 
+            with tf.variable_scope('distillation'):
+                # NOTE: to train distillation, op_z should be feed with q(z|s)
+                print('mf_pi:', train_model.pi.get_shape().as_list())
+                print('op_pi:', train_model.option_pi.get_shape().as_list())
+                distillation_loss = tf.reduce_mean(
+                    tf.nn.softmax_cross_entropy_with_logits_v2(
+                        labels=tf.stop_gradient(train_model.pi),
+                        logits=train_model.option_pi))
+                option_distil_train_op = tf.train.AdamOptimizer(lr).minimize(
+                    loss=distillation_loss, var_list=params)
+
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
 
         def train(obs, states, rewards, masks, actions, values):
@@ -159,8 +171,22 @@ class Model(object):
 
             return record_loss_values
 
+        def distill_mf_to_options(obs, states, masks):
+            feed = {train_model.X: obs}
+            if states is not None:
+                feed[train_model.S] = states
+                feed[train_model.M] = masks
+
+            option_ensembles = sess.run(train_model.option_discriminator, feed)
+            feed[train_model.op_z] = option_ensembles
+            distillation_loss_value, _ = sess.run(
+                [distillation_loss, option_distil_train_op], feed)
+
+            return distillation_loss_value
+
         self.train = train
         self.train_options = train_options
+        self.distill_mf_to_options = distill_mf_to_options
         self.train_model = train_model
         self.prior_op_z = train_model.prior_op_z
         self.step_model = step_model
@@ -314,6 +340,10 @@ def learn(
                 record_loss_values = model.train_options(
                     obs, next_obs, states, next_states, masks, next_masks,
                     actions, actions_full, dones, options_z)
+                distillation_loss_value = model.distill_mf_to_options(
+                    obs, states, masks)
+                record_loss_values.append(
+                    ('distillation_loss', distillation_loss_value))
 
             nseconds = time.time()-tstart
             fps = int((update*nbatch)/nseconds)
