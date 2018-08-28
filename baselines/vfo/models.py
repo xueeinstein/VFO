@@ -2,7 +2,8 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
 from baselines.a2c import utils
-from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch
+from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, \
+    seq_to_batch
 
 
 def nature_cnn(unscaled_images, convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
@@ -24,7 +25,7 @@ def nature_cnn(unscaled_images, convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
 
 
 def cnn(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], nh=512, **conv_kwargs):
-    '''
+    """
     cnn-flatten-fc net
 
     Parameters:
@@ -36,7 +37,7 @@ def cnn(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], nh=512, **conv_kwargs):
     Returns:
 
     function that takes tensorflow tensor as input and returns the output of the last convolutional layer and output of fc layer after flatten cnn
-    '''
+    """
     def network_fn(X):
         fm = nature_cnn(X, convs=convs, **conv_kwargs)  # cnn feature map
         out = conv_to_fc(fm)
@@ -100,3 +101,38 @@ def get_network_builder(network_type):
         return cnn_lstm
     else:
         raise NotImplementedError
+
+
+def nn_discriminator(num_options=64, hidden_sizes=[100, 100],
+                     activation=tf.nn.relu):
+    """
+    Discriminator to evaluate which option to use for given observations
+    This discriminator is modeled as posterior q(z | s)
+
+    Parameters:
+    -----------
+
+    num_options:      number of options to evaluate
+
+    hidden_sizes:     size of fully-connected layers
+
+    activation:       type of activation function for FC hidden layers, for output layer, the activation function is none
+
+    Returns:
+    -------
+
+    function that builds FC network with given latent state tensor
+    """
+    def network_fn(S):
+        h = tf.layers.flatten(S)
+        for i, hs in enumerate(hidden_sizes):
+            if i != len(hidden_sizes) - 1:
+                h = activation(fc(h, 'fc_{}'.format(i), nh=hs,
+                                  init_scale=np.sqrt(2)))
+            else:
+                h = fc(h, 'eval', nh=num_options,
+                       init_scale=np.sqrt(2))
+
+        return h
+
+    return network_fn
