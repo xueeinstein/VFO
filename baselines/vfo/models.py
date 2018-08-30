@@ -129,6 +129,6 @@ def nn_discriminator(num_options=64, hidden_sizes=[100, 100],
                 h = fc(h, 'eval', nh=num_options,
                        init_scale=np.sqrt(2))
 
-        return tf.nn.softmax(h)
+        return tf.nn.softmax(h), h
 
     return network_fn

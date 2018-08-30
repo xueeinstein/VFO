@@ -103,8 +103,9 @@ class PolicyWithValue(object):
             print('pvfs_next:', self.next_pvfs.get_shape().as_list())
 
             with tf.variable_scope('discriminator'):
-                self.option_discriminator = nn_discriminator(
-                    num_options=self.noptions)(tf.stop_gradient(latent))
+                no_grad_latent = tf.stop_gradient(latent)
+                self.option_discriminator, self.option_discriminator_logits = \
+                    nn_discriminator(num_options=self.noptions)(no_grad_latent)
 
     def _evaluate(self, variables, observation, **extra_feed):
         sess = self.sess or tf.get_default_session()

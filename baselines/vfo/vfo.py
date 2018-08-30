@@ -108,16 +108,14 @@ class Model(object):
                 discriminator_loss = tf.reduce_mean(
                     tf.nn.softmax_cross_entropy_with_logits_v2(
                         labels=train_model.op_z,
-                        logits=train_model.option_discriminator))
+                        logits=train_model.option_discriminator_logits))
 
             with tf.variable_scope('distillation'):
                 # NOTE: to train distillation, op_z should be feed with q(z|s)
                 print('mf_pi:', train_model.pi.get_shape().as_list())
                 print('op_pi:', train_model.option_pi.get_shape().as_list())
-                distillation_loss = tf.reduce_mean(
-                    tf.nn.softmax_cross_entropy_with_logits_v2(
-                        labels=tf.stop_gradient(train_model.pi),
-                        logits=train_model.option_pi))
+                distillation_loss = losses.mean_squared_error(
+                    tf.stop_gradient(train_model.pi), train_model.option_pi)
 
         _train_option_q = tf.train.AdamOptimizer(lr).minimize(
             loss=option_q_loss, var_list=params)
