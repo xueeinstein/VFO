@@ -74,6 +74,7 @@ class PolicyWithValue(object):
         self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01)
 
         self.action = self.pd.sample()
+        self.deterministic_action = self.pd.mode()
         self.neglogp = self.pd.neglogp(self.action)
         self.sess = sess
 
@@ -82,6 +83,7 @@ class PolicyWithValue(object):
             self.option_pd, self.option_pi = self.option_pdtype.pdfromlatent(
                 option_latent, init_scale=0.01)
             self.option_action = self.option_pd.sample()
+            self.deterministic_option_action = self.option_pd.mode()
             self.option_neglogp = self.option_pd.neglogp(self.action)
 
             # soft q function for option
@@ -118,7 +120,7 @@ class PolicyWithValue(object):
 
         return sess.run(variables, feed_dict)
 
-    def step(self, observation, **extra_feed):
+    def step(self, observation, stochastic=True, **extra_feed):
         """
         Compute next action(s) given the observaion(s)
 
@@ -133,24 +135,42 @@ class PolicyWithValue(object):
         -------
         (action, value estimate, next state, negative log likelihood of the action under current policy parameters) tuple
         """
+        if stochastic:
+            action = self.action
+        else:
+            action = self.deterministic_action
+
         a, v, state, neglogp = self._evaluate(
-            [self.action, self.vf, self.state, self.neglogp],
+            [action, self.vf, self.state, self.neglogp],
             observation, **extra_feed)
         if state.size == 0:
             state = None
         return a, v, state, neglogp
 
-    def option_step(self, option_z, observation, **extra_feed):
+    def option_step(self, option_z, observation, stochastic=True, **extra_feed):
         """
         Compute next action(s) given the observaion(s) and option one_hot
         """
+        if stochastic:
+            action = self.option_action
+        else:
+            action = self.deterministic_option_action
+
         extra_feed.update({'op_z': option_z})
         a, state, neglogp = self._evaluate(
-            [self.option_action, self.state, self.option_neglogp],
+            [action, self.state, self.option_neglogp],
             observation, **extra_feed)
         if state.size == 0:
             state = None
         return a, state, neglogp
+
+    def option_select(self, observation, **extra_feed):
+        """
+        Run option discriminator
+        """
+        discriminator_value = self._evaluate(
+            self.option_discriminator, observation, **extra_feed)
+        return discriminator_value
 
     def value(self, ob, *args, **kwargs):
         """

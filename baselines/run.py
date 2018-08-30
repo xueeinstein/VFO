@@ -1,5 +1,6 @@
 import sys
 import multiprocessing
+import os
 import os.path as osp
 import gym
 from collections import defaultdict
@@ -19,6 +20,7 @@ from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common import atari_wrappers, retro_wrappers
 
 from baselines.envs.maze import make_maze_env
+from baselines.common.movie_util import MovieWriter
 
 
 try:
@@ -173,6 +175,8 @@ def get_default_network(env_type):
         return 'mlp'
     if env_type == 'atari':
         return 'cnn'
+    if env_type == 'maze':
+        return 'cnn'
 
     raise ValueError('Unknown env_type {}'.format(env_type))
 
@@ -217,6 +221,8 @@ def parse(v):
 def main():
     # configure logger, disable logging in child MPI processes (with rank > 0)
     arg_parser = common_arg_parser()
+    arg_parser.add_argument('--options_play', help='Agent play with options',
+                            default=False, action='store_true')
     args, unknown_args = arg_parser.parse_known_args()
     extra_args = {k: parse(v) for k, v in parse_unknown_args(unknown_args).items()}
 
@@ -237,14 +243,57 @@ def main():
         logger.log("Running trained model")
         env = build_env(args)
         obs = env.reset()
+        w, h, _ = obs[0].shape
+        video = MovieWriter(osp.join(logger.get_dir(), "play.mp4"), (w, h), 2)
+        video.add_frame(np.array(obs[0][:, :, ::-1], dtype=np.uint8))
         while True:
-            actions = model.step(obs)[0]
+            actions = model.step(obs, stochastic=False)[0]
             obs, _, done, _ = env.step(actions)
-            env.render()
-            done = done.any() if isinstance(done, np.ndarray) else done
+            # env.render()
+            video.add_frame(np.array(obs[0][:, :, ::-1], dtype=np.uint8))
+            # done = done.any() if isinstance(done, np.ndarray) else done
+            done = done[0]
 
             if done:
                 obs = env.reset()
+                env.close()
+                video.close()
+                break
+
+    if args.options_play:
+        logger.log("Running trained options policy")
+        video_path = osp.join(logger.get_dir(), "options_play")
+        if not osp.exists(video_path):
+            os.mkdir(video_path)
+
+        # assume 64 options
+        for i in range(64):
+            env = build_env(args)
+            obs = env.reset()
+            w, h, _ = obs[0].shape
+            logger.log("Create op_play_{}.mp4".format(i))
+            video = MovieWriter(
+                osp.join(video_path, "op_play_{}.mp4".format(i)), (w, h), 2)
+            video.add_frame(np.array(obs[0][:, :, ::-1], dtype=np.uint8))
+            option_z = np.zeros((env.num_envs, 64))
+            option_z[:, i] = 1.0
+
+            step = 1
+            while True:
+                actions = model.option_step(option_z, obs, stochastic=False)[0]
+                discri = model.option_select(obs)[0]
+                logger.log("step: {} discriminator: {}".format(step, discri))
+                obs, _, done, _ = env.step(actions)
+                video.add_frame(np.array(obs[0][:, :, ::-1], dtype=np.uint8))
+                done = done[0]
+
+                step += 1
+
+                if done:
+                    obs = env.reset()
+                    env.close()
+                    video.close()
+                    break
 
 
 if __name__ == '__main__':

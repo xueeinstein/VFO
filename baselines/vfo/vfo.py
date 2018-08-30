@@ -197,6 +197,7 @@ class Model(object):
         self.step_model = step_model
         self.step = step_model.step
         self.option_step = step_model.option_step
+        self.option_select = step_model.option_select
         self.value = step_model.value
         self.proto_value = step_model.proto_value
         self.initial_state = step_model.initial_state
