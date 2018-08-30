@@ -196,7 +196,7 @@ def global_average_pooling(h, data_format='NHWC', **kwargs):
     return out
 
 
-def build_policy(env, policy_network, noptions, value_network='gap',
+def build_policy(env, policy_network, noptions, value_network=None,
                  normalize_observations=False, estimate_q=False,
                  **policy_kwargs):
     assert isinstance(policy_network, str), 'only accept string'

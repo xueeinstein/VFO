@@ -33,6 +33,7 @@ class Model(object):
         R = tf.placeholder(tf.float32, [nbatch])
         LR = tf.placeholder(tf.float32, [])
         params = find_trainable_variables('vfo_model')
+        print(params)
 
         # ==============================
         # model-free actor-critic loss
@@ -50,9 +51,10 @@ class Model(object):
             if max_grad_norm is not None:
                 grads, grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
             grads = list(zip(grads, params))
-            trainer = tf.train.RMSPropOptimizer(learning_rate=LR, decay=alpha,
-                                                epsilon=epsilon)
-            _train = trainer.apply_gradients(grads)
+
+        trainer = tf.train.RMSPropOptimizer(learning_rate=LR, decay=alpha,
+                                            epsilon=epsilon)
+        _train = trainer.apply_gradients(grads)
 
         # ==============================
         # diverse options policy loss
@@ -89,12 +91,6 @@ class Model(object):
                 option_q_loss = 0.5 * tf.reduce_mean(
                     (option_q_y - option_q) ** 2)
 
-                _train_option_q = tf.train.AdamOptimizer(lr).minimize(
-                    loss=option_q_loss, var_list=params)
-                option_train_ops.append(_train_option_q)
-                option_losses.append(option_q_loss)
-                option_losses_names.append('option_critic')
-
             with tf.variable_scope('actor'):
                 log_op_pi_t = train_model.option_pd.logp(A)
                 log_target_t = tf.squeeze(train_model.option_q, 1)
@@ -105,11 +101,6 @@ class Model(object):
                 print('pvf:', pvf.get_shape().as_list())
                 kl_surrogate_loss = tf.reduce_mean(
                     log_op_pi_t * tf.stop_gradient(log_op_pi_t - log_target_t - pvf))
-                _train_option_policy = tf.train.AdamOptimizer(lr).minimize(
-                    loss=kl_surrogate_loss, var_list=params)
-                option_train_ops.append(_train_option_policy)
-                option_losses.append(kl_surrogate_loss)
-                option_losses_names.append('option_actor')
 
             with tf.variable_scope('discriminator'):
                 print('op_z:', train_model.op_z.get_shape().as_list())
@@ -118,11 +109,6 @@ class Model(object):
                     tf.nn.softmax_cross_entropy_with_logits_v2(
                         labels=train_model.op_z,
                         logits=train_model.option_discriminator))
-                _train_option_disc = tf.train.AdamOptimizer(lr).minimize(
-                    loss=discriminator_loss, var_list=params)
-                option_train_ops.append(_train_option_disc)
-                option_losses.append(discriminator_loss)
-                option_losses_names.append('option_discriminator')
 
             with tf.variable_scope('distillation'):
                 # NOTE: to train distillation, op_z should be feed with q(z|s)
@@ -132,8 +118,29 @@ class Model(object):
                     tf.nn.softmax_cross_entropy_with_logits_v2(
                         labels=tf.stop_gradient(train_model.pi),
                         logits=train_model.option_pi))
-                option_distil_train_op = tf.train.AdamOptimizer(lr).minimize(
-                    loss=distillation_loss, var_list=params)
+
+        _train_option_q = tf.train.AdamOptimizer(lr).minimize(
+            loss=option_q_loss, var_list=params)
+        option_train_ops.append(_train_option_q)
+        option_losses.append(option_q_loss)
+        option_losses_names.append('option_critic')
+
+        _train_option_policy = tf.train.AdamOptimizer(lr).minimize(
+            loss=kl_surrogate_loss, var_list=params)
+        option_train_ops.append(_train_option_policy)
+        option_losses.append(kl_surrogate_loss)
+        option_losses_names.append('option_actor')
+
+        _train_option_disc = tf.train.AdamOptimizer(lr).minimize(
+            loss=discriminator_loss, var_list=params)
+        option_train_ops.append(_train_option_disc)
+        option_losses.append(discriminator_loss)
+        option_losses_names.append('option_discriminator')
+
+        option_distil_train_op = tf.train.AdamOptimizer(lr).minimize(
+            loss=distillation_loss, var_list=params)
+
+        tf.summary.FileWriter(logger.get_dir(), sess.graph)
 
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
 
