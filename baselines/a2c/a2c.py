@@ -50,6 +50,7 @@ class Model(object):
         trainer = tf.train.RMSPropOptimizer(learning_rate=LR, decay=alpha, epsilon=epsilon)
         _train = trainer.apply_gradients(grads)
 
+        tf.summary.FileWriter(logger.get_dir(), sess.graph)
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
 
         def train(obs, states, rewards, masks, actions, values):
@@ -171,6 +172,7 @@ def learn(
             logger.record_tabular("fps", fps)
             logger.record_tabular("policy_entropy", float(policy_entropy))
             logger.record_tabular("value_loss", float(value_loss))
+            logger.record_tabular("policy_loss", float(policy_loss))
             logger.record_tabular("explained_variance", float(ev))
             logger.dump_tabular()
     env.close()
