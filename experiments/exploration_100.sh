@@ -2,8 +2,8 @@
 # ========================================================
 #              Exploration at 100 Episode
 #
-# Code # which fix maze layout but sample actions with
-# different seeds
+# Code branch:exploration_100#a0d1a8a which fix maze layout
+# but sample actions with different seeds
 #
 # Requirements:
 # 1. run ./experiments/test.sh for a while,
