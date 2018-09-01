@@ -16,7 +16,7 @@ PY=$VIRTUAL_ENV"/bin/python"
 echo "Using virtual env at "$VIRTUAL_ENV
 echo "Running with seed: "$seed
 
-iter_num=1000
+iter_num=0
 while [ $iter_num -lt $episodes ]
 do
   echo "Ep: "$iter_num
