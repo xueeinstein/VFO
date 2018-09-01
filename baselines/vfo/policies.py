@@ -60,6 +60,7 @@ class PolicyWithValue(object):
         self.dones = dones
         self.noptions = option_z.get_shape().as_list()[-1]
         self.prior_op_z = np.full(self.noptions, 1.0 / self.noptions)
+        self.selected_options = [None] * env.num_envs
         self.state = tf.constant([])
         self.initial_state = None
         self.__dict__.update(tensors)
@@ -171,6 +172,28 @@ class PolicyWithValue(object):
         discriminator_value = self._evaluate(
             self.option_discriminator, observation, **extra_feed)
         return discriminator_value
+
+    def _update_selected_options(self, top_n_options):
+        top_n = top_n_options.shape[1]
+        for env_id, current_option in enumerate(self.selected_options):
+            if current_option in top_n_options[env_id]:
+                continue
+            else:
+                new_option = top_n_options[env_id][np.random.choice(top_n)]
+                self.selected_options[env_id] = new_option
+
+    def selective_option_step(self, observation, stochastic=True, top_n=8,
+                              **extra_feed):
+        discriminator_value = self.option_select(observation, **extra_feed)
+        nbatch = observation.shape[0]
+        assert discriminator_value.shape[1] > top_n, 'top_n is larger than noptions'
+        order = np.argsort(discriminator_value, axis=1)
+        top_n_options = order[:, -top_n:]
+        self._update_selected_options(top_n_options)
+        option_z = np.zeros((nbatch, self.noptions), dtype=int)
+        option_z[np.arange(nbatch), self.selected_options] = 1
+        return self.option_step(option_z, observation, stochastic=stochastic,
+                                **extra_feed)
 
     def value(self, ob, *args, **kwargs):
         """

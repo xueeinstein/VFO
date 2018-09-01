@@ -223,6 +223,9 @@ def main():
     arg_parser = common_arg_parser()
     arg_parser.add_argument('--options_play', help='Agent play with options',
                             default=False, action='store_true')
+    arg_parser.add_argument(
+        '--selective_option_play', default=False, action='store_true',
+        help='Agent play with selective option')
     args, unknown_args = arg_parser.parse_known_args()
     extra_args = {k: parse(v) for k, v in parse_unknown_args(unknown_args).items()}
 
@@ -246,8 +249,36 @@ def main():
         w, h, _ = obs[0].shape
         video = MovieWriter(osp.join(logger.get_dir(), "play.mp4"), (w, h), 2)
         video.add_frame(np.array(obs[0][:, :, ::-1], dtype=np.uint8))
+        import cv2
+        cv2.imwrite(os.path.join(logger.get_dir(), "init_ob.png"),
+                    obs[0][:, :, ::-1])
         while True:
-            actions = model.step(obs, stochastic=False)[0]
+            actions = model.step(obs, stochastic=True)[0]
+            obs, _, done, _ = env.step(actions)
+            # env.render()
+            video.add_frame(np.array(obs[0][:, :, ::-1], dtype=np.uint8))
+            # done = done.any() if isinstance(done, np.ndarray) else done
+            done = done[0]
+
+            if done:
+                obs = env.reset()
+                env.close()
+                video.close()
+                break
+
+    if args.selective_option_play:
+        logger.log("Running selective option play with trained options policy")
+        env = build_env(args)
+        obs = env.reset()
+        w, h, _ = obs[0].shape
+        video = MovieWriter(
+            osp.join(logger.get_dir(), "selective_option_play.mp4"), (w, h), 2)
+        video.add_frame(np.array(obs[0][:, :, ::-1], dtype=np.uint8))
+        import cv2
+        cv2.imwrite(os.path.join(logger.get_dir(), "init_ob.png"),
+                    obs[0][:, :, ::-1])
+        while True:
+            actions = model.selective_option_step(obs, stochastic=True)[0]
             obs, _, done, _ = env.step(actions)
             # env.render()
             video.add_frame(np.array(obs[0][:, :, ::-1], dtype=np.uint8))
@@ -280,7 +311,7 @@ def main():
 
             step = 1
             while True:
-                actions = model.option_step(option_z, obs, stochastic=False)[0]
+                actions = model.option_step(option_z, obs, stochastic=True)[0]
                 discri = model.option_select(obs)[0]
                 logger.log("step: {} discriminator: {}".format(step, discri))
                 obs, _, done, _ = env.step(actions)

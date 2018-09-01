@@ -1,3 +1,4 @@
+import os
 import time
 import functools
 import numpy as np
@@ -198,6 +199,7 @@ class Model(object):
         self.step = step_model.step
         self.option_step = step_model.option_step
         self.option_select = step_model.option_select
+        self.selective_option_step = step_model.selective_option_step
         self.value = step_model.value
         self.proto_value = step_model.proto_value
         self.initial_state = step_model.initial_state
@@ -282,7 +284,7 @@ def learn(
 
     **network_kwargs:   keyword arguments to the policy / network builder. See baselines.vfo/policies.py/build_policy and arguments to a particular type of network
     '''
-    set_global_seeds(seed)
+    # set_global_seeds(seed)
 
     nenvs = env.num_envs
     policy = build_policy(env, network, noptions, **network_kwargs)
@@ -305,6 +307,8 @@ def learn(
     to_train_options, init_replay_buffer_done = False, False
     total_updates = total_timesteps // nbatch+1
     for update in range(1, total_updates):
+        if update % 300 == 0:
+            model.save(os.path.join(logger.get_dir(), "snapshot"))
         if not to_train_options:
             obs, states, rewards, masks, actions, values = runner.run()
             policy_loss, value_loss, policy_entropy = model.train(
@@ -344,13 +348,13 @@ def learn(
                 obs, next_obs, states, next_states, masks, next_masks, \
                     actions, actions_full, dones, options_z = \
                     replay_buffer.get()
+                # distillation_loss_value = model.distill_mf_to_options(
+                #     obs, states, masks)
                 record_loss_values = model.train_options(
                     obs, next_obs, states, next_states, masks, next_masks,
                     actions, actions_full, dones, options_z)
-                distillation_loss_value = model.distill_mf_to_options(
-                    obs, states, masks)
-                record_loss_values.append(
-                    ('distillation_loss', distillation_loss_value))
+                # record_loss_values.append(
+                #     ('distillation_loss', distillation_loss_value))
 
             nseconds = time.time()-tstart
             fps = int((update*nbatch)/nseconds)
