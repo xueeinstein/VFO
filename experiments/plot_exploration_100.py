@@ -26,6 +26,7 @@ def collect_agent_pos(log_file_pattern, steps=None):
     log_files = glob.glob(log_file_pattern)
     pos_dict = {}
     total_pos = 0
+    start_pos = None
     for log in log_files:
         collect_steps = 0
         with open(log, 'r') as f:
@@ -40,15 +41,18 @@ def collect_agent_pos(log_file_pattern, steps=None):
                     else:
                         pos_dict[pos_str] = 1
 
+                    if collect_steps == 0:
+                        start_pos = pos_str
+
                     collect_steps += 1
 
                     total_pos += 1
 
-    return pos_dict, total_pos
+    return pos_dict, total_pos, start_pos
 
 
-def plot_exploration_heatmap(pos_dict, total_pos, log_file_pattern, maze_size,
-                             fig):
+def plot_exploration_heatmap(pos_dict, total_pos, start_pos, log_file_pattern,
+                             maze_size, fig):
     maze_size = [float(i) for i in maze_size.split('x')]
     example_log = glob.glob(log_file_pattern)[0]
     init_ob = cv2.imread(example_log.replace('log.txt', 'init_ob.png'))
@@ -58,6 +62,8 @@ def plot_exploration_heatmap(pos_dict, total_pos, log_file_pattern, maze_size,
     colors.reverse()
     h, w, _ = init_ob.shape
     for pos_str, count in pos_dict.items():
+        if pos_str == start_pos:
+            continue
         pos = [int(i) for i in pos_str.split('_')]
         y = int(pos[0] * h / maze_size[0])
         x = int(pos[1] * w / maze_size[1])
