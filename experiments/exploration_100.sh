@@ -2,7 +2,7 @@
 # ========================================================
 #              Exploration at 100 Episode
 #
-# Code branch:exploration_100#a0d1a8a which fix maze layout
+# Code branch:exploration_100 which fix maze layout
 # but sample actions with different seeds
 #
 # Requirements:
