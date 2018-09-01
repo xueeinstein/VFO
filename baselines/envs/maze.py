@@ -480,6 +480,8 @@ class MazeEnv(object):
                 self.maze.move_object_random(self.prob_goal_move, GOAL)
                 # print("goal_moved")
 
+        if self.verbose:
+            logger.log("agent: {}".format(self.maze.agent_pos))
         # return self.observation(), reward, self.terminated, to_log, 1
         return self.observation(), reward, self.terminated, to_log
 
@@ -608,7 +610,10 @@ def make_maze_env(env_id, num_env, seed, start_index=0, **kwargs):
 
     def make_env(rank):
         def _thunk():
-            env = make_maze(env_id, **kwargs)
+            if rank == start_index:
+                env = make_maze(env_id, verbose=1, **kwargs)
+            else:
+                env = make_maze(env_id, **kwargs)
             env.seed(seed + 10000*mpi_rank + rank if seed is not None else None)
             path = os.path.join(
                 logger.get_dir(), str(mpi_rank) + '.' + str(rank))
@@ -616,5 +621,5 @@ def make_maze_env(env_id, num_env, seed, start_index=0, **kwargs):
                           allow_early_resets=True)
             return env
         return _thunk
-    set_global_seeds(seed)
+    # set_global_seeds(seed)
     return SubprocVecEnv([make_env(i + start_index) for i in range(num_env)])
