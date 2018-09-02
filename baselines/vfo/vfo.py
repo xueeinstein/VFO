@@ -284,7 +284,7 @@ def learn(
 
     **network_kwargs:   keyword arguments to the policy / network builder. See baselines.vfo/policies.py/build_policy and arguments to a particular type of network
     '''
-    set_global_seeds(seed)
+    # set_global_seeds(seed)
 
     nenvs = env.num_envs
     policy = build_policy(env, network, noptions, **network_kwargs)
