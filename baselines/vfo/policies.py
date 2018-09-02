@@ -192,8 +192,9 @@ class PolicyWithValue(object):
         self._update_selected_options(top_n_options)
         option_z = np.zeros((nbatch, self.noptions), dtype=int)
         option_z[np.arange(nbatch), self.selected_options] = 1
-        return self.option_step(option_z, observation, stochastic=stochastic,
-                                **extra_feed)
+        step_outputs = self.option_step(option_z, observation,
+                                        stochastic=stochastic, **extra_feed)
+        return (*step_outputs, option_z)
 
     def value(self, ob, *args, **kwargs):
         """

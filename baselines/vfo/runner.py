@@ -50,9 +50,10 @@ class OptionsRunner(AbstractEnvRunner):
                 # after steps discriminator is trustable, then use
                 # selective_option_step, this setting avoid influence
                 # from nn_discriminator initialization
-                actions, values, states, _ = self.model.selective_option_step(
-                    self.obs, top_n=self.top_n_options, S=self.states,
-                    M=self.dones)
+                actions, values, states, _, self.option_z = \
+                    self.model.selective_option_step(
+                        self.obs, top_n=self.top_n_options, S=self.states,
+                        M=self.dones)
             else:
                 actions, values, states, _ = self.model.option_step(
                     self.option_z, self.obs, S=self.states, M=self.dones)
