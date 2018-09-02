@@ -31,7 +31,7 @@ def collect_agent_pos(log_file_pattern, steps=None):
         with open(log, 'r') as f:
             for l in f.readlines():
                 if l.startswith('agent:'):
-                    if steps is not None and collect_steps > steps:
+                    if steps is not None and collect_steps >= steps:
                         break
                     pos = re.search('\[.*\]', l)
                     pos_str = pos.group(0).replace(', ', '_')[1:-1]
