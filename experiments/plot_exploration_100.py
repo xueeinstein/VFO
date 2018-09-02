@@ -53,8 +53,8 @@ def plot_exploration_heatmap(pos_dict, total_pos, log_file_pattern,
     example_log = glob.glob(log_file_pattern)[0]
     init_ob = cv2.imread(example_log.replace('log.txt', 'init_ob.png'))
     init_ob = cv2.resize(init_ob, (80, 80))  # for better offset
-    red = Color("red")
-    colors = list(red.range_to(Color("#ffaaaa"), int(total_pos)))
+    dark_red = Color("#550000")
+    colors = list(dark_red.range_to(Color("#ffaaaa"), int(total_pos)))
     colors.reverse()
     h, w, _ = init_ob.shape
     for pos_str, count in pos_dict.items():
