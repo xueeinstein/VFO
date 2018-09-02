@@ -214,6 +214,7 @@ def learn(
         seed=None,
         nsteps=5,
         noptions=64,
+        top_n_options=8,
         replay_buffer_size=1000,
         total_timesteps=int(80e6),
         start_op_at=0.8,
@@ -252,6 +253,8 @@ def learn(
                         nenv is number of environment copies simulated in parallel)
 
     noptions:           int, number of options for VFO, i.e. channels of last Conv layer
+
+    top_n_options:      int, number of top possible options to for selective option step
 
     replay_buffer_size  int, size of replay buffer which is used to train options
 
@@ -299,8 +302,9 @@ def learn(
     if load_path is not None:
         model.load(load_path)
     runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
-    options_runner = OptionsRunner(env, model, noptions, nsteps=nsteps,
-                                   gamma=gamma)
+    options_runner = OptionsRunner(
+        env, model, noptions, nsteps=nsteps, gamma=gamma,
+        use_selective_option=True, top_n_options=top_n_options)
 
     nbatch = nenvs * nsteps
     tstart = time.time()
@@ -330,7 +334,8 @@ def learn(
                 to_train_options = True
         else:
             obs, next_obs, states, next_states, masks, next_masks, actions, \
-                actions_full, dones, options_z = options_runner.run()
+                actions_full, rewards, values, dones, options_z = \
+                options_runner.run()
             replay_buffer.put(
                 obs, next_obs, states, next_states, masks, next_masks,
                 actions, actions_full, dones, options_z)
@@ -344,24 +349,32 @@ def learn(
                 logger.info('Sample data using option policy...')
                 continue
 
+            policy_loss, value_loss, policy_entropy = model.train(
+                obs, states, rewards, masks, actions, values)
+
             for _ in range(options_update_iter):
                 obs, next_obs, states, next_states, masks, next_masks, \
                     actions, actions_full, dones, options_z = \
                     replay_buffer.get()
-                # distillation_loss_value = model.distill_mf_to_options(
-                #     obs, states, masks)
+                distillation_loss_value = model.distill_mf_to_options(
+                    obs, states, masks)
                 record_loss_values = model.train_options(
                     obs, next_obs, states, next_states, masks, next_masks,
                     actions, actions_full, dones, options_z)
-                # record_loss_values.append(
-                #     ('distillation_loss', distillation_loss_value))
+                record_loss_values.append(
+                    ('distillation_loss', distillation_loss_value))
 
             nseconds = time.time()-tstart
             fps = int((update*nbatch)/nseconds)
             if update % log_interval == 0 or update == 1:
+                ev = explained_variance(values, rewards)
                 logger.record_tabular("nupdates", update)
                 logger.record_tabular("total_timesteps", update*nbatch)
                 logger.record_tabular("fps", fps)
+                logger.record_tabular("policy_entropy", float(policy_entropy))
+                logger.record_tabular("value_loss", float(value_loss))
+                logger.record_tabular("policy_loss", float(policy_loss))
+                logger.record_tabular("explained_variance", float(ev))
                 for loss_name, loss_value in record_loss_values:
                     logger.record_tabular(loss_name, loss_value)
                 logger.dump_tabular()

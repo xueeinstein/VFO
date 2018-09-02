@@ -158,12 +158,12 @@ class PolicyWithValue(object):
             action = self.deterministic_option_action
 
         extra_feed.update({'op_z': option_z})
-        a, state, neglogp = self._evaluate(
-            [action, self.state, self.option_neglogp],
+        a, v, state, neglogp = self._evaluate(
+            [action, self.vf, self.state, self.option_neglogp],
             observation, **extra_feed)
         if state.size == 0:
             state = None
-        return a, state, neglogp
+        return a, v, state, neglogp
 
     def option_select(self, observation, **extra_feed):
         """
