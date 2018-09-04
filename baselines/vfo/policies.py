@@ -92,17 +92,18 @@ class PolicyWithValue(object):
             # vf-feature map activation grad
             va_grads = tf.gradients(self.vf, self.fm, name='vf_fm_grad')[0]
             # assume data_format 'NHWC'
-            # FIXME: get wrong pvfs
             print('vf:', self.vf.get_shape().as_list())
             print('fm:', self.fm.get_shape().as_list())
             print('va_grads:', va_grads.get_shape().as_list())
-            self.pvfs = tf.reduce_sum(tf.multiply(self.fm, va_grads), axis=[1, 2])
+            self.pvfs = tf.multiply(tf.reduce_sum(va_grads, axis=[1, 2]),
+                                    tf.reduce_sum(self.fm, axis=[1, 2]))
             print('pvfs:', self.pvfs.get_shape().as_list())
 
             next_va_grads = tf.gradients(self.vf_next, self.fm_next,
                                          name='next_vf_fm_grad')[0]
-            self.next_pvfs = tf.reduce_sum(
-                tf.multiply(self.fm_next, next_va_grads), axis=[1, 2])
+            self.next_pvfs = tf.multiply(
+                tf.reduce_sum(next_va_grads, axis=[1, 2]),
+                tf.reduce_sum(self.fm_next, axis=[1, 2]))
             print('pvfs_next:', self.next_pvfs.get_shape().as_list())
 
             with tf.variable_scope('discriminator'):
