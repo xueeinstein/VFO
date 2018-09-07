@@ -17,6 +17,9 @@ class MovieWriter(object):
         """
         frame shape is (h, w, 3), dtype is np.uint8
         """
+        # TODO: update this hard code for Atari NoFrameskip-v4 envs
+        if frame.shape[-1] == 4:
+            frame = cv2.cvtColor(frame[:, :, -1:], cv2.COLOR_GRAY2BGR)
         self.vout.write(frame)
 
     def close(self):

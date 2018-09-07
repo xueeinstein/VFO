@@ -252,7 +252,9 @@ def main():
         import cv2
         cv2.imwrite(os.path.join(logger.get_dir(), "init_ob.png"),
                     obs[0][:, :, ::-1])
-        while True:
+        i = 0
+        while i < 1000:
+            i += 1
             actions = model.step(obs, stochastic=True)[0]
             obs, _, done, _ = env.step(actions)
             # env.render()
@@ -277,7 +279,9 @@ def main():
         import cv2
         cv2.imwrite(os.path.join(logger.get_dir(), "init_ob.png"),
                     obs[0][:, :, ::-1])
-        while True:
+        i = 0
+        while i < 1000:
+            i += 1
             actions = model.selective_option_step(obs, stochastic=True)[0]
             obs, _, done, _ = env.step(actions)
             # env.render()
@@ -310,7 +314,7 @@ def main():
             option_z[:, i] = 1.0
 
             step = 1
-            while True:
+            while step < 1000:
                 actions = model.option_step(option_z, obs, stochastic=True)[0]
                 discri = model.option_select(obs)[0]
                 logger.log("step: {} discriminator: {}".format(step, discri))
