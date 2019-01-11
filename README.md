@@ -23,4 +23,4 @@ The code in **baselines/vfo** folder implements following architecture.
 
 ## Acknowledgement
 
-This repo is devloped on top of [OpenAI baselines](https://github.com/openai/baselines).
+This repo is developed on top of [OpenAI baselines](https://github.com/openai/baselines).
